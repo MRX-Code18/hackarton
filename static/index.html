@@ -762,17 +762,11 @@
 
         <div id="page-landing" class="page active">
             <div class="hero">
-<<<<<<< HEAD
-                <h1>
-                    Tu voz llega más<br />rápido con <span>tus reportes</span>
-                </h1>
-=======
                 <div class="hero-badge">
                     <div class="logo-dot" style="width: 7px; height: 7px"></div>
                     Plataforma Municipal · Tecnológico de Naranjos
                 </div>
                 <h1>Tu voz llega más<br />rápido con <span>tus reportes</span></h1>
->>>>>>> d91b3b571165b24a10c39479c44c128db226f4db
                 <p>
                     Reporta incidencias urbanas en segundos. Nuestra inteligencia artificial clasifica, prioriza y enruta tu reporte automáticamente al área correcta del municipio.
                 </p>
@@ -985,7 +979,7 @@
         <script>
             // 1. Configuración de conexión con el Backend de Python (FastAPI)
             // Cambia este puerto por el que utilice tu servidor local si no es 8000
-            const API_BASE = "http://127.0.0.1:8000";
+            const API_BASE = ""; // FastAPI sirve este HTML, las rutas son relativas
 
             // Guardar folio actual para recargas de redimensionamiento
             let activeEstatusForResize = "recibido";
@@ -1193,7 +1187,7 @@
                         throw new Error("No se pudo registrar tu reporte en la base de datos municipal.");
                     }
 
-                    const data = await response.getJson ? await response.getJson() : await response.json();
+                    const data = await response.json();
 
                     // Esperar un momento breve para simular la visualización fluida de los pasos del spinner de la IA
                     setTimeout(() => {
@@ -1217,7 +1211,7 @@
                 } catch (error) {
                     // Si falla el servidor local, retrocede y muestra un mensaje limpio en interfaz
                     showPage("form");
-                    mostrarErrorDeConsulta("Error de red: " + error.message + ". ¿El backend de Python ya está activo en tu puerto local?");
+                    mostrarErrorDeConsulta("Error de red: " + error.message + ". Verifica que el servidor esté en ejecución.");
                 }
             }
 
