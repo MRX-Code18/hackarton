@@ -400,6 +400,7 @@
         <div class="char-counter"><span id="char-count">0</span> / 1000 caracteres</div>
       </div>
 
+<<<<<<< HEAD
       <div class="form-group">
         <label>Ubicación (calle, colonia)</label>
         <div class="location-row">
@@ -409,6 +410,163 @@
             <span class="btn-loc-icon">📍</span>
             <span class="btn-loc-text">Mi ubicación</span>
           </button>
+=======
+            .track-section {
+                background: var(--bg-card);
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                padding: 1.5rem;
+                margin-top: 1.5rem;
+            }
+            .track-section h4 { font-size: 13px; font-weight: 700; margin-bottom: 1rem; color: var(--guinda-principal); }
+            .track-timeline { display: flex; flex-direction: column; }
+            .track-event { display: flex; gap: 14px; padding: 10px 0; position: relative; }
+            .track-event::before {
+                content: "";
+                position: absolute;
+                left: 11px;
+                top: 28px;
+                width: 2px;
+                height: calc(100% - 16px);
+                background: var(--border);
+            }
+            .track-event:last-child::before { display: none; }
+            .track-dot {
+                width: 24px;
+                height: 24px;
+                border-radius: 50%;
+                flex-shrink: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 10px;
+                font-weight: bold;
+            }
+            .track-dot.done { background: #e8f5e9; color: #2e7d32; border: 2px solid #2e7d32; }
+            .track-dot.pending { background: #fafafa; border: 2px dashed var(--border); }
+            .track-event-info { flex: 1; padding-top: 3px; }
+            .track-event-title { font-size: 13px; font-weight: 600; color: var(--text); }
+            .track-event-time { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+            .progress-bar { height: 4px; background: var(--border); border-radius: 2px; margin-bottom: 2rem; }
+            .progress-fill { height: 100%; background: var(--guinda-principal); border-radius: 2px; transition: width 0.4s ease; }
+            .steps-row { display: flex; gap: 8px; align-items: center; margin-bottom: 2rem; font-size: 13px; }
+            .step-item { color: var(--text-dim); font-weight: 500; }
+            .step-item.active { color: var(--guinda-principal); font-weight: 700; }
+            .step-sep { color: var(--text-dim); }
+
+            .page.active > * { animation: fadeUp 0.4s ease both; }
+            @keyframes fadeUp {
+                from { opacity: 0; transform: translateY(12px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+
+            /* MEDIA QUERIES RESPONSIVE */
+            @media (max-width: 600px) {
+                nav { flex-direction: column; align-items: flex-start; gap: 12px; padding: 1rem; }
+                .nav-right { width: 100%; display: grid; grid-template-columns: 1fr; gap: 8px; }
+                .hero { padding: 3rem 1rem 2rem; }
+                .hero h1 { font-size: 2.2rem; }
+                .hero-cta { flex-direction: column; width: 100%; }
+                .stats-bar { grid-template-columns: 1fr; margin-top: 3rem; }
+                .stat-item { border-bottom: 1px solid var(--border); padding: 1.2rem; }
+                .stat-item:last-child { border-bottom: none; }
+                .form-page, .confirm-page { padding: 2rem 1rem; }
+                .form-footer { flex-direction: column; gap: 16px; }
+                .btn-submit { width: 100%; justify-content: center; }
+                .confirm-header, .confirm-row, .track-input-row { flex-direction: column; align-items: flex-start; gap: 8px; }
+                .confirm-val { text-align: left; }
+            }
+
+            @media (max-width: 480px) {
+                .level-bar { flex-direction: column; gap: 20px; margin-left: 15px; }
+                .level-bar::before { left: 15px; top: 0; bottom: 0; width: 3px; height: 100%; }
+                .level-progress-line { left: 15px; top: 0; width: 3px !important; height: 0%; transition: height 0.5s ease; }
+                .level-node { flex-direction: row; text-align: left; gap: 15px; align-items: center; }
+                .level-label { margin-top: 0; max-width: none; font-size: 12px; }
+            }
+        </style>
+    </head>
+    <body>
+        <nav>
+            <div class="logo" onclick="showPage('landing')" style="cursor: pointer;">
+                <div class="logo-dot"></div>
+                Reporte Urbano
+            </div>
+            <div class="nav-right">
+                <button class="btn-outline" onclick="goToTracking()">
+                    Seguimiento
+                </button>
+                <button class="btn-primary" onclick="showPage('form')">
+                    Reportar
+                </button>
+            </div>
+        </nav>
+
+        <div id="page-landing" class="page active">
+            <div class="hero">
+<<<<<<< HEAD
+                <h1>
+                    Tu voz llega más<br />rápido con <span>tus reportes</span>
+                </h1>
+=======
+                <div class="hero-badge">
+                    <div class="logo-dot" style="width: 7px; height: 7px"></div>
+                    Plataforma Municipal · Tecnológico de Naranjos
+                </div>
+                <h1>Tu voz llega más<br />rápido con <span>tus reportes</span></h1>
+>>>>>>> d91b3b571165b24a10c39479c44c128db226f4db
+                <p>
+                    Reporta incidencias urbanas en segundos. Nuestra inteligencia artificial clasifica, prioriza y enruta tu reporte automáticamente al área correcta del municipio.
+                </p>
+                <div class="hero-cta">
+                    <button class="btn-hero" onclick="showPage('form')">📍 Hacer un reporte</button>
+                    <button class="btn-hero-sec" onclick="goToTracking()">🔍 Rastrear reporte</button>
+                </div>
+            </div>
+
+            <div class="stats-bar">
+                <div class="stat-item">
+                    <span class="stat-num">&lt; 2s</span>
+                    <div class="stat-label">Clasificación con IA</div>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-num">99%</span>
+                    <div class="stat-label">Precisión de ruteo</div>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-num">24/7</span>
+                    <div class="stat-label">Atención sin horario</div>
+                </div>
+            </div>
+
+            <div class="features">
+                <div class="section-label">¿Por qué CiudadanoIA?</div>
+                <div class="section-title">Tecnología al servicio de tu colonia</div>
+                <div class="feat-grid">
+                    <div class="feat-card">
+                        <div class="feat-icon green">🤖</div>
+                        <h3>Clasificación automática</h3>
+                        <p>La IA determina tipo de incidencia, prioridad y dependencia responsable en menos de 2 segundos.</p>
+                    </div>
+                    <div class="feat-card">
+                        <div class="feat-icon blue">📱</div>
+                        <h3>Respuesta inmediata</h3>
+                        <p>Recibes un folio único y un mensaje personalizado con el tiempo estimado de atención.</p>
+                    </div>
+                    <div class="feat-card">
+                        <div class="feat-icon amber">⏱️</div>
+                        <h3>Atención ágil</h3>
+                        <p>El reporte es enviado directamente a las cuadrillas de servicios municipales para agilizar su resolución.</p>
+                    </div>
+                    <div class="feat-card">
+                        <div class="feat-icon red">🔔</div>
+                        <h3>Seguimiento en vivo</h3>
+                        <p>Rastra el estado de tu reporte en cualquier momento con tu número de folio.</p>
+                    </div>
+                </div>
+            </div>
+>>>>>>> b31abf88c36b083ca15b42b1cd88971e54b3b4dd
         </div>
 
         <!-- Panel resultado GPS -->
