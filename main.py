@@ -1,24 +1,36 @@
+import logging
 import os
-import random
 import uuid
 from typing import Optional
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
+from dotenv import load_dotenv
+from supabase import create_client, Client
 
+load_dotenv()
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# ─────────────────────────────────────────────
+# 1. CLIENTE DE SUPABASE
+# ─────────────────────────────────────────────
+SUPABASE_URL: str = os.environ["SUPABASE_URL"]
+SUPABASE_KEY: str = os.environ["SUPABASE_SERVICE_KEY"]
+SUPABASE_BUCKET = "fotos-reportes"
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# ─────────────────────────────────────────────
+# 2. APP FASTAPI
+# ─────────────────────────────────────────────
 app = FastAPI(
     title="Plataforma Inteligente de Reportes - API",
-    description="Backend en Python para la gestión ciudadana de reportes con IA",
-    version="1.0.0",
+    version="2.1.0",
 )
 
-# ─────────────────────────────────────────────
-# 1. CORS — permite peticiones desde cualquier
-#    origen local durante desarrollo.
-#    En producción reemplaza "*" por tu dominio.
-# ─────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -27,79 +39,49 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ─────────────────────────────────────────────
-# 2. Carpeta de imágenes subidas por ciudadanos
-# ─────────────────────────────────────────────
-UPLOAD_DIR = "uploads"
 STATIC_DIR = "static"
-os.makedirs(UPLOAD_DIR, exist_ok=True)p.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 
-# ─────────────────────────────────────────────
-# 3. Sirve el frontend (index.html) en la raíz.
-#    Así el frontend y el backend comparten el
-#    mismo origen → sin problemas de CORS.
-# ─────────────────────────────────────────────
 @app.get("/", response_class=FileResponse, include_in_schema=False)
 async def serve_frontend():
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
 
 # ─────────────────────────────────────────────
-# 4. Base de Datos en Memoria (simulada)
-#    En producción usa SQLAlchemy + PostgreSQL
+# 3. HEALTH CHECK — prueba la conexión a Supabase
+#    Visita http://127.0.0.1:8000/api/health
 # ─────────────────────────────────────────────
-DB_REPORTES: dict = {}
+@app.get("/api/health")
+async def health_check():
+    try:
+        result = supabase.table("reportes").select("folio").limit(1).execute()
+        return {"status": "ok", "supabase": "conectado", "tabla_reportes": "existe"}
+    except Exception as e:
+        logger.error(f"[HEALTH] Error: {e}")
+        return {"status": "error", "detalle": str(e)}
 
 
 # ─────────────────────────────────────────────
-# 5. Motor de Inteligencia Artificial (simulado)
+# 4. MOTOR DE IA
 # ─────────────────────────────────────────────
 def analizar_reporte_con_ia(descripcion: str):
-    """
-    Simula el análisis semántico de la IA institucional para determinar
-    la prioridad, categoría y una respuesta automatizada.
-    """
-    desc_lower = descripcion.lower()
-
-    if any(p in desc_lower for p in ["fuga", "inundacion", "agua", "tubería", "drenaje"]):
-        categoria = "Infraestructura Hidráulica"
-        prioridad = 2
-        mensaje_ia = (
-            "El sistema inteligente detectó un riesgo hidráulico severo. "
-            "Se ha notificado inmediatamente a la cuadrilla de Agua y Saneamiento "
-            "de la zona geográfica delimitada."
-        )
-    elif any(p in desc_lower for p in ["bache", "socavón", "grieta", "pavimento"]):
-        categoria = "Vialidad y Pavimentación"
-        prioridad = 3
-        mensaje_ia = (
-            "Reporte clasificado en el área de obras públicas. "
-            "Se integró la anomalía vial al mapa de bacheo prioritario "
-            "para su pronta atención programada."
-        )
-    elif any(p in desc_lower for p in ["luminaria", "luz", "obscuro", "poste", "cables"]):
-        categoria = "Alumbrado Público"
-        prioridad = 4
-        mensaje_ia = (
-            "Se identificó una falla en el circuito eléctrico comunitario. "
-            "Turnado al departamento de servicios públicos para la "
-            "sustitución del componente lumínico."
-        )
+    d = descripcion.lower()
+    if any(p in d for p in ["fuga", "inundacion", "agua", "tuberia", "tubería", "drenaje"]):
+        return ("Infraestructura Hidraulica", "Alta", 2,
+                "El sistema detectó un riesgo hidráulico severo. Se notificó a la cuadrilla de Agua y Saneamiento.")
+    elif any(p in d for p in ["bache", "socavon", "socavón", "grieta", "pavimento"]):
+        return ("Vialidad y Pavimentacion", "Media", 3,
+                "Reporte clasificado en obras públicas. Se integró al mapa de bacheo prioritario.")
+    elif any(p in d for p in ["luminaria", "luz", "obscuro", "poste", "cables"]):
+        return ("Alumbrado Publico", "Normal", 4,
+                "Falla en el circuito eléctrico detectada. Turnado a servicios públicos.")
     else:
-        categoria = "Servicios Generales"
-        prioridad = 4
-        mensaje_ia = (
-            "Reporte recibido con éxito. La IA institucional ha canalizado "
-            "los detalles al departamento administrativo correspondiente "
-            "para su evaluación manual."
-        )
-
-    return categoria, prioridad, mensaje_ia
+        return ("Servicios Generales", "Normal", 4,
+                "Reporte recibido. La IA institucional lo canalizó al departamento correspondiente.")
 
 
 # ─────────────────────────────────────────────
-# 6. ENDPOINTS DE LA API
+# 5. ENDPOINTS
 # ─────────────────────────────────────────────
 
 @app.post("/api/reportes")
@@ -108,76 +90,96 @@ async def crear_reporte(
     ubicacion: str = Form(...),
     foto: Optional[UploadFile] = File(None),
 ):
-    """
-    Recibe los datos del formulario (FormData), procesa la foto opcional,
-    ejecuta el motor de IA y almacena el reporte generando un folio único.
-    """
     try:
-        nuevo_id = str(uuid.uuid4())[:8].upper()
-        folio = f"FOL-2026-{nuevo_id}"
+        folio = f"FOL-2026-{str(uuid.uuid4())[:8].upper()}"
+        categoria, prioridad, prioridad_num, mensaje_ia = analizar_reporte_con_ia(descripcion)
 
+        # ── Subir foto (opcional) ───────────────────────────────────
         foto_url = None
         if foto and foto.filename:
-            extension = os.path.splitext(foto.filename)[1]
-            nombre_archivo = f"{folio}{extension}"
-            ruta_archivo = os.path.join(UPLOAD_DIR, nombre_archivo)
-
-            with open(ruta_archivo, "wb") as buffer:
+            try:
+                extension = os.path.splitext(foto.filename)[1] or ".jpg"
+                storage_path = f"{folio}{extension}"
                 content = await foto.read()
-                buffer.write(content)
+                supabase.storage.from_(SUPABASE_BUCKET).upload(
+                    path=storage_path,
+                    file=content,
+                    file_options={"content-type": foto.content_type or "image/jpeg"},
+                )
+                foto_url = f"{SUPABASE_URL}/storage/v1/object/public/{SUPABASE_BUCKET}/{storage_path}"
+            except Exception as foto_err:
+                # No abortar si la foto falla, solo loguear
+                logger.warning(f"[FOTO] No se pudo subir la foto: {foto_err}")
 
-            foto_url = f"/uploads/{nombre_archivo}"
-
-        categoria, prioridad, mensaje_ia = analizar_reporte_con_ia(descripcion)
-
-        reporte_data = {
-            "folio": folio,
-            "descripcion": descripcion,
-            "ubicacion": ubicacion,
-            "foto_url": foto_url,
-            "categoria": categoria,
-            "prioridad": prioridad,
-            "mensaje_ia": mensaje_ia,
-            "estatus": "Recibido",
+        # ── Insertar en Supabase ────────────────────────────────────
+        row = {
+            "folio":               folio,
+            "descripcion":         descripcion,
+            "ubicacion":           ubicacion,
+            "foto_url":            foto_url,
+            "categoria":           categoria,
+            "prioridad":           prioridad,
+            "prioridad_num":       prioridad_num,
+            "mensaje_ia":          mensaje_ia,
+            "estatus":             "Recibido",
             "progreso_porcentaje": 0,
-            "fecha_creacion": "2026-05-21",
         }
 
-        DB_REPORTES[folio] = reporte_data
-        return reporte_data
+        logger.info(f"[INSERT] Insertando reporte {folio}...")
+        result = supabase.table("reportes").insert(row).execute()
+        logger.info(f"[INSERT] Resultado: {result}")
 
+        if not result.data:
+            raise ValueError("Supabase no devolvió datos. ¿Ejecutaste el schema.sql?")
+
+        return _formato_frontend(result.data[0])
+
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error interno al procesar el reporte: {str(e)}",
-        )
+        logger.error(f"[ERROR] POST /api/reportes → {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/reportes/{folio}")
 async def consultar_reporte(folio: str):
-    """
-    Permite el seguimiento del reporte mediante su folio institucional.
-    Devuelve los datos de estatus y progreso dinámico para las barras de nivel.
-    """
+    try:
+        folio_upper = folio.strip().upper()
+        result = supabase.table("reportes").select("*").eq("folio", folio_upper).limit(1).execute()
+
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Folio no encontrado en el sistema.")
+
+        return _formato_frontend(result.data[0])
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[ERROR] GET /api/reportes/{folio} → {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/reportes/{folio}/historial")
+async def historial_reporte(folio: str):
     folio_upper = folio.strip().upper()
+    result = (supabase.table("historial_estatus").select("*")
+              .eq("folio", folio_upper).order("created_at").execute())
+    return {"folio": folio_upper, "historial": result.data}
 
-    if folio_upper not in DB_REPORTES:
-        raise HTTPException(
-            status_code=404,
-            detail="El folio institucional ingresado no fue encontrado en el sistema.",
-        )
 
-    reporte = DB_REPORTES[folio_upper]
-
-    estados_posibles = [
-        {"status": "Recibido",      "pct": 0,   "node": 1},
-        {"status": "Validado por IA","pct": 33,  "node": 2},
-        {"status": "En Cuadrilla",  "pct": 66,  "node": 3},
-        {"status": "Resuelto",      "pct": 100, "node": 4},
-    ]
-
-    estado_actual = random.choice(estados_posibles)
-    reporte["estatus"] = estado_actual["status"]
-    reporte["progreso_porcentaje"] = estado_actual["pct"]
-
-    return reporte
+# ─────────────────────────────────────────────
+# 6. HELPER
+# ─────────────────────────────────────────────
+def _formato_frontend(row: dict) -> dict:
+    return {
+        "folio":               row["folio"],
+        "descripcion":         row["descripcion"],
+        "ubicacion":           row["ubicacion"],
+        "foto_url":            row.get("foto_url"),
+        "categoria":           row["categoria"],
+        "prioridad":           row["prioridad_num"],
+        "mensaje_ia":          row["mensaje_ia"],
+        "estatus":             row["estatus"],
+        "progreso_porcentaje": row["progreso_porcentaje"],
+        "fecha_creacion":      row.get("created_at", ""),
+    }

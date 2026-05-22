@@ -595,16 +595,7 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-// ─── CONFIGURACIÓN SUPABASE ──────────────────────────────────────────────────
-// 🔧 REEMPLAZA ESTOS VALORES con los de tu proyecto en https://supabase.com/dashboard
-const SUPABASE_URL = 'https://dzoroezultrvekdfysmt.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR6b3JvZXp1bHRydmVrZGZ5c210Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTM5NDAzNiwiZXhwIjoyMDk0OTcwMDM2fQ.JeCdz-ucs4aqwMNocscLPJl1T-M5jqYYQoN7PigwaMQ';
-
-const { createClient } = supabase;
-const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
 // ─── NAVEGACIÓN ─────────────────────────────────────────────────────────────
 function showPage(name) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -841,38 +832,19 @@ function setTrackingLevel(level) {
   else { line.style.height = '3px'; line.style.width = pct + '%'; }
 }
 
-
-// ─── HELPERS ─────────────────────────────────────────────────────────────────
-function generarFolio() {
-  var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  var random = '';
-  for (var i = 0; i < 5; i++) random += chars[Math.floor(Math.random() * chars.length)];
-  return 'RPT-2026-' + random;
+function getFormattedTime() {
+  var now = new Date();
+  var h = now.getHours(), m = now.getMinutes().toString().padStart(2, '0');
+  var ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return h + ':' + m + ' ' + ampm;
 }
 
-function mapearPrioridad(prioridad) {
-  if (prioridad === 1 || prioridad === 2) return { text: '🔴 Prioridad Alta', cls: 'prioridad-2' };
-  if (prioridad === 3) return { text: '🟡 Prioridad Media', cls: 'prioridad-3' };
-  return { text: '🔵 Prioridad Normal', cls: 'prioridad-4' };
-}
-
-function mapearEstado(estado) {
-  if (!estado) return { text: '🟡 En proceso', cls: 'est-proc', level: 'proceso' };
-  var e = estado.toLowerCase();
-  if (e.includes('resuelto')) return { text: '🟢 Resuelto', cls: 'est-resuel', level: 'resuelto' };
-  if (e.includes('inspección') || e.includes('inspeccion')) return { text: '🔍 En inspección', cls: 'est-proc', level: 'inspeccion' };
-  if (e.includes('proceso') || e.includes('proceso')) return { text: '🟡 En proceso', cls: 'est-proc', level: 'proceso' };
-  return { text: '⚪ Recibido', cls: 'est-recib', level: 'recibido' };
-}
-
-// ─── ENVÍO A SUPABASE ────────────────────────────────────────────────────────
-async function submitReport() {
+// ─── ENVÍO ───────────────────────────────────────────────────────────────────
+function submitReport() {
   var desc = document.getElementById('desc-input').value.trim();
   if (!desc) return;
-
   showPage('processing');
-
-  // Avanzar pasos del spinner visualmente
   var step = 2;
   var interval = setInterval(function() {
     if (step <= 4) {
@@ -881,121 +853,83 @@ async function submitReport() {
       step++;
     } else {
       clearInterval(interval);
+      setTimeout(function() {
+        var hora = getFormattedTime();
+        document.getElementById('success-section').style.display = 'block';
+        document.getElementById('track-section-top').style.display = 'none';
+        document.getElementById('report-result').style.display = 'block';
+        document.getElementById('folio-input').value = 'RPT-2026-00851';
+        loadReportData('RPT-2026-00851', hora);
+        showPage('confirm');
+      }, 400);
     }
-  }, 700);
-
-  try {
-    var folio = generarFolio();
-    var ubicacion = document.getElementById('dir-input').value.trim() || 'No especificada';
-    var fotoInput = document.getElementById('foto-input');
-    var foto_url = null;
-
-    // Subir foto a Supabase Storage si existe
-    if (fotoInput.files[0]) {
-      var file = fotoInput.files[0];
-      var ext = file.name.split('.').pop();
-      var filePath = 'reportes/' + folio + '.' + ext;
-      var uploadRes = await db.storage.from('fotos-reportes').upload(filePath, file);
-      if (!uploadRes.error) {
-        var publicUrl = db.storage.from('fotos-reportes').getPublicUrl(filePath);
-        foto_url = publicUrl.data.publicUrl;
-      }
-    }
-
-    // Insertar reporte en tabla "reportes"
-    var insertRes = await db.from('reportes').insert([{
-      folio: folio,
-      descripcion: desc,
-      ubicacion: ubicacion,
-      foto_url: foto_url,
-      categoria: '🚧 Vialidad',
-      subcategoria: 'Por clasificar',
-      dependencia: 'Por asignar',
-      prioridad: 2,
-      estatus: 'recibido',
-      mensaje_ia: 'Reporte recibido y registrado con folio ' + folio + '. Será procesado a la brevedad.',
-      eta: '48–72 horas',
-      created_at: new Date().toISOString()
-    }]).select().single();
-
-    if (insertRes.error) throw insertRes.error;
-
-    var data = insertRes.data;
-
-    setTimeout(function() {
-      document.getElementById('success-section').style.display = 'block';
-      document.getElementById('track-section-top').style.display = 'none';
-      document.getElementById('report-result').style.display = 'block';
-      document.getElementById('folio-input').value = folio;
-      renderizarReporte(data);
-      showPage('confirm');
-
-      // Limpiar formulario
-      document.getElementById('desc-input').value = '';
-      document.getElementById('dir-input').value = '';
-      document.getElementById('foto-input').value = '';
-      document.getElementById('foto-name').style.display = 'none';
-      document.getElementById('char-count').textContent = '0';
-      checkFormCompletion();
-    }, 400);
-
-  } catch (err) {
-    clearInterval(interval);
-    showPage('form');
-    alert('Error al guardar el reporte: ' + (err.message || err));
-  }
+  }, 800);
 }
 
-// ─── CONSULTA DESDE SUPABASE ─────────────────────────────────────────────────
-async function loadReport() {
+function loadReport() {
   var folio = document.getElementById('folio-input').value.trim();
   if (!folio) return;
-
-  try {
-    var res = await db.from('reportes').select('*').eq('folio', folio).single();
-
-    if (res.error) {
-      alert('Folio no encontrado: ' + folio);
-      return;
-    }
-
-    document.getElementById('success-section').style.display = 'none';
-    document.getElementById('report-result').style.display = 'block';
-    renderizarReporte(res.data);
-
-  } catch (err) {
-    alert('Error al consultar: ' + (err.message || err));
-  }
+  document.getElementById('success-section').style.display = 'none';
+  document.getElementById('report-result').style.display = 'block';
+  loadReportData(folio, '10:34 AM');
 }
 
-// ─── RENDER DE REPORTE ───────────────────────────────────────────────────────
-function renderizarReporte(data) {
-  var prior = mapearPrioridad(data.prioridad);
-  var estado = mapearEstado(data.estatus);
+function loadReportData(folio, hora) {
+  var db = {
+    'RPT-2026-00847': {
+      prior: '🟢 Prioridad Baja', priorClass: 'prioridad-4',
+      cat: '🧹 Limpieza', subcat: 'Basura acumulada en contenedor',
+      dep: 'Dirección de Servicios Públicos', eta: 'Atendido',
+      estado: '🟢 Resuelto', estadoClass: 'est-resuel', level: 'resuelto',
+      msg: 'El reporte con folio #' + folio + ' ha sido atendido exitosamente. Agradecemos tu participación.',
+      timeline: [
+        { t: 'Reporte recibido y validado en sistema', h: '12 de Mayo · 08:30 AM' },
+        { t: 'Asignado a la Dirección de Servicios Públicos', h: '12 de Mayo · 09:15 AM' },
+        { t: 'Cuadrilla de limpieza despachada al área', h: '13 de Mayo · 11:00 AM' },
+        { t: 'Incidencia resuelta y cierre de folio verificado', h: '14 de Mayo · ' + hora }
+      ]
+    },
+  'RPT-2026-00851': {
+    prior: '🔴 Prioridad Alta', priorClass: 'prioridad-2',
+    cat: '🚧 Vialidad', subcat: 'Bache profundo en calzada', // Nota: Si deseas cambiar la subcategoría visual, puedes editar esta línea.
+    dep: 'Dirección de Obras Públicas', eta: '48–72 horas',
+    estado: '🟡 En proceso', estadoClass: 'est-proc', level: 'proceso',
+    msg: 'Estimado/a ciudadano/a, le informamos que su solicitud ha sido recibida y registrada con el folio #' + folio + ' a las ' + hora + '. El reporte fue canalizado a la Dirección de Obras Públicas con prioridad alta. Tiempo estimado de respuesta: 48–72 horas.',
+    timeline: [
+      { t: 'Reporte recibido y clasificado mediante inteligencia artificial', h: 'Hoy · ' + hora },
+      { t: 'Asignado a la Dirección de Obras Públicas para su planeación', h: 'Hoy · ' + hora }
+    ]
+  }
+  };
 
-  document.getElementById('res-folio').textContent = data.folio;
-  document.getElementById('res-prior').textContent = prior.text;
-  document.getElementById('res-prior').className = 'prioridad-badge ' + prior.cls;
-  document.getElementById('res-cat').textContent = data.categoria || '🚧 Vialidad';
-  document.getElementById('res-subcat').textContent = data.subcategoria || 'Sin especificar';
-  document.getElementById('res-dep').textContent = data.dependencia || 'Por asignar';
-  document.getElementById('res-eta').textContent = data.eta || '48–72 horas';
-  document.getElementById('res-estado').textContent = estado.text;
-  document.getElementById('res-estado').className = 'estado-pill ' + estado.cls;
-  document.getElementById('res-mensaje').innerHTML = data.mensaje_ia || 'Reporte registrado correctamente.';
+  var d = db[folio] || {
+    prior: '🔴 Prioridad Alta', priorClass: 'prioridad-2',
+    cat: '🚧 Vialidad', subcat: 'Bache profundo en calzada',
+    dep: 'Dirección de Obras Públicas', eta: '48–72 horas',
+    estado: '🟡 En proceso', estadoClass: 'est-proc', level: 'proceso',
+    msg: 'Hola, gracias por tu reporte. Hemos registrado la incidencia con folio #' + folio + ' a las ' + hora + '.',
+    timeline: [
+      { t: 'Reporte recibido y clasificado en sistema', h: 'Hoy · ' + hora },
+      { t: 'Asignado a la dependencia responsable', h: 'Hoy · ' + hora }
+    ]
+  };
 
-  setTrackingLevel(estado.level);
+  document.getElementById('res-folio').textContent = folio;
+  document.getElementById('res-prior').textContent = d.prior;
+  document.getElementById('res-prior').className = 'prioridad-badge ' + d.priorClass;
+  document.getElementById('res-cat').textContent = d.cat;
+  document.getElementById('res-subcat').textContent = d.subcat;
+  document.getElementById('res-dep').textContent = d.dep;
+  document.getElementById('res-eta').textContent = d.eta;
+  document.getElementById('res-estado').textContent = d.estado;
+  document.getElementById('res-estado').className = 'estado-pill ' + d.estadoClass;
+  document.getElementById('res-mensaje').innerHTML = d.msg;
 
-  // Timeline dinámico
+  setTrackingLevel(d.level);
+
   var tl = document.getElementById('res-timeline');
   tl.innerHTML = '';
-
-  var eventos = data.timeline_json ? JSON.parse(data.timeline_json) : [
-    { t: 'Reporte recibido y registrado en sistema', h: new Date(data.created_at).toLocaleString('es-MX') },
-    { t: 'Pendiente de asignación a dependencia responsable', h: 'En espera' }
-  ];
-
-  eventos.forEach(function(ev) {
+  d.timeline.forEach(function(ev) {
     var div = document.createElement('div');
     div.style.cssText = 'display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);align-items:flex-start';
     div.innerHTML =
@@ -1005,7 +939,7 @@ function renderizarReporte(data) {
     tl.appendChild(div);
   });
 
-  if (estado.level !== 'resuelto') {
+  if (d.level !== 'resuelto') {
     var pend = document.createElement('div');
     pend.style.cssText = 'display:flex;gap:12px;padding:10px 0;align-items:flex-start';
     pend.innerHTML =
